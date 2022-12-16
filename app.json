@@ -1,0 +1,29 @@
+{
+  "author": "IoT Open",
+  "licence": "MIT",
+  "input": {
+	  "baseFunction": {
+		  "required": true,
+		  "name": "Calibrated function",
+		  "description": "Function to be calibrated",
+		  "type": "single_function_selector"
+	  },
+	  "calibration": {
+		  "required": true,
+		  "name": "Offset",
+		  "description": "Offset value by",
+		  "type": "number"
+	  }
+  },
+  "guide": [
+    {
+      "id": "stage_1",
+      "title": "Calibration settings",
+      "description": "",
+      "input_fields": [
+		  "baseFunction",
+		  "calibration"
+      ]
+    }
+  ]
+}

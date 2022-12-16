@@ -1,0 +1,17 @@
+{
+  "category": "calculation",
+  "description": "Adds an offset on a functions value and publishes it on a new topic",
+  "name": "Calibrate",
+  "public": true,
+  "publisher": {
+    "id": x
+  },
+  "short_description": "Basic calibration app",
+  "source_url": "https://github.com/IoTOpen/edge-app-calibrate",
+  "tags": [
+    "standard",
+    "basic",
+    "calibrate"
+  ]
+}
+
