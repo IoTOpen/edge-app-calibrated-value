@@ -55,34 +55,54 @@ function findFunctions(criteria)
 end
 
 local calibratedFunction
+local baseFunction
 
 function onMessage(topic, payload, retained)
 	local data = json:decode(payload)
-	local newMessage = {value: data.value + cfg.calibration}
-	mq:pub(topic .. '/calibrated', json:encode(newMessage))
+	local newMessage = {value = data.value + cfg.calibration, timestamp = data.timestamp}
+	mq:pub(calibratedFunction.meta.topic_read, json:encode(newMessage))
 end
 
 function onCreate()
+	baseFunction = findFunction(cfg.baseFunction)
 	local newFn = table.deepCopy(findFunction(cfg.baseFunction))
 	newFn.meta.name = 'Calibrated ' .. newFn.meta.name
 	newFn.meta.derived_from = tostring(newFn.id)
 	newFn.meta["app.id"] = tostring(app.id)
 	newFn.meta.topic_read = newFn.meta.topic_read .. '/calibrated'
-	lynx.createFunction(newFn)
+	newFn.protected_meta = nil
+	local resp, err = lynx.createFunction(newFn)
+	if err ~= nil then
+		log.d("%s", err.message)
+	else
+		log.d("Created new function: %s", resp.meta.name)
+		calibratedFunction = resp
+	end
 end
 
 function onFunctionsUpdated()
+	log.d('Functions updated..')
 	local newCalibratedFunction = findFunction({
 	    ["app.id"] = tostring(app.id)
 	})
-	if newCalibratedFunction.meta.topic_read ~= calibratedFunction.meta.topic_read then
-    	mq:unsub(calibratedFunction.meta.topic_read)
-    	mq:unbind(calibratedFunction.meta.topic_read, onMessage)
-
-	    mq:sub(newCalibratedFunction.meta.topic_read)
-    	mq:bind(newCalibratedFunction.meta.topic_read, onMessage)
-    end
-    calibratedFunction = newCalibratedFunction
+	if newCalibratedFunction == nil then
+	      log.d("Calibrated function not found; removed?")
+	      return
+	end
+	local newBaseFunction = findFunction(cfg.baseFunction)
+	if newBaseFunction == nil then
+	      log.d("Base function not found; removed?")
+	      return
+	end
+	if newBaseFunction.meta.topic_read ~= baseFunction.meta.topic_read then
+	      log.d("Base function topic changed; adapting...")
+	      mq:unsub(baseFunction.meta.topic_read)
+	      mq:unbind(baseFunction.meta.topic_read, onMessage)
+              mq:sub(newBaseFunction.meta.topic_read)
+    	      mq:bind(newBaseFunction.meta.topic_read, onMessage)
+        end
+        calibratedFunction = newCalibratedFunction
+	baseFunction = newBaseFunction
 end
 
 function onDestroy()
@@ -90,9 +110,24 @@ function onDestroy()
 end
 
 function onStart()
-	calibratedFunction = findFunction({
-	    ["app.id"] = tostring(app.id)
-	})
-	mq:sub(calibratedFunction.meta.topic_read)
-	mq:bind(calibratedFunction.meta.topic_read, onMessage)
+	if calibratedFunction == nil then
+		calibratedFunction = findFunction({
+		    ["app.id"] = tostring(app.id)
+		})
+	end
+	if calibratedFunction == nil then
+		log.d("Calibrated function not found; removed?")
+		return
+	end
+	if baseFunction == nil then
+		baseFunction = findFunction(cfg.baseFunction)
+		if baseFunction == nil then
+			log.d("Base function not found; removed?")
+			return
+		end
+	end
+	if baseFunction ~= nil then
+		mq:sub(baseFunction.meta.topic_read)
+		mq:bind(baseFunction.meta.topic_read, onMessage)
+	end
 end
